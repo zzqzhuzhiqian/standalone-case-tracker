@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>预约数据管理与Excel导出</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- 引入SheetJS库用于Excel导出 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- 引入数据同步模块 -->
+    <script src="data-sync.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1E40AF',
+                        secondary: '#3B82F6',
+                        success: '#10B981',
+                        warning: '#F59E0B',
+                        danger: '#EF4444',
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .shadow-soft {
+                box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <header class="bg-primary text-white shadow-md">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-bold">
+                <i class="fa fa-calendar-check-o mr-2"></i>预约数据管理与Excel导出
+            </h1>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 max-w-6xl">
+        <!-- 控制面板 -->
+        <div class="bg-white rounded-xl shadow-soft p-6 mb-8">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">控制面板</h2>
+            <div class="flex flex-col md:flex-row gap-4">
+                <button id="export-excel-btn" class="bg-primary hover:bg-primary/90 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center">
+                    <i class="fa fa-file-excel-o mr-2"></i>导出Excel数据
+                </button>
+                <button id="refresh-data-btn" class="bg-secondary hover:bg-secondary/90 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center">
+                    <i class="fa fa-refresh mr-2"></i>刷新数据
+                </button>
+                <button id="add-case-btn" class="bg-success hover:bg-success/90 text-white font-medium py-3 px-6 rounded-lg transition flex items-center justify-center">
+                    <i class="fa fa-plus mr-2"></i>添加新案件
+                </button>
+            </div>
+        </div>
+
+        <!-- 添加案件表单（默认隐藏） -->
+        <div id="case-form-container" class="bg-white rounded-xl shadow-soft p-6 mb-8 hidden">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">添加新案件</h2>
+            <form id="add-case-form" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="case-name" class="block text-sm font-medium text-gray-700 mb-1">姓名 *</label>
+                        <input type="text" id="case-name" name="case-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary" placeholder="请输入姓名" required>
+                    </div>
+                    <div>
+                        <label for="case-phone" class="block text-sm font-medium text-gray-700 mb-1">手机号码 *</label>
+                        <input type="tel" id="case-phone" name="case-phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary" placeholder="请输入手机号码" required pattern="^1[3-9]\d{9}$">
+                    </div>
+                </div>
+                <div>
+                    <label for="case-reason" class="block text-sm font-medium text-gray-700 mb-1">原因/备注</label>
+                    <textarea id="case-reason" name="case-reason" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary" placeholder="请输入原因或备注"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">审核状态 *</label>
+                    <div class="flex gap-4">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="case-status" value="pending" class="form-radio text-primary" checked>
+                            <span class="ml-2">待审核</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="case-status" value="approved" class="form-radio text-success">
+                            <span class="ml-2">审核通过</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="case-status" value="rejected" class="form-radio text-danger">
+                            <span class="ml-2">审核不通过</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                    <button type="button" id="cancel-add-case" class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50">取消</button>
+                    <button type="submit" id="submit-add-case" class="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">提交</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 数据统计卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-soft p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-700">总预约数</h3>
+                    <span class="bg-blue-100 text-blue-800 p-2 rounded-full">
+                        <i class="fa fa-calendar"></i>
+                    </span>
+                </div>
+                <p id="total-appointments" class="text-3xl font-bold text-primary">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-soft p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-700">审核通过数</h3>
+                    <span class="bg-green-100 text-green-800 p-2 rounded-full">
+                        <i class="fa fa-check-circle"></i>
+                    </span>
+                </div>
+                <p id="approved-count" class="text-3xl font-bold text-success">0</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-soft p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-700">待处理数</h3>
+                    <span class="bg-yellow-100 text-yellow-800 p-2 rounded-full">
+                        <i class="fa fa-clock-o"></i>
+                    </span>
+                </div>
+                <p id="pending-count" class="text-3xl font-bold text-warning">0</p>
+            </div>
+        </div>
+
+        <!-- 案件审核状态表格 -->
+        <div class="bg-white rounded-xl shadow-soft p-6 mb-8">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">案件审核状态管理</h2>
+            <div class="mb-4">
+                <div class="relative">
+                    <input type="text" id="case-search-input" class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary" placeholder="输入姓名或手机号码进行搜索...">
+                    <i class="fa fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <button id="case-search-btn" class="absolute right-3 top-1/2 transform -translate-y-1/2 bg-primary hover:bg-primary/90 text-white font-medium py-1 px-4 rounded-lg transition">
+                        搜索
+                    </button>
+                    <button id="case-reset-btn" class="absolute right-24 top-1/2 transform -translate-y-1/2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-1 px-4 rounded-lg transition hidden">
+                        重置
+                    </button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">手机号码</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">当前状态</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">原因/备注</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cases-table-body" class="bg-white divide-y divide-gray-200">
+                        <!-- 表格数据将通过JavaScript动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 预约记录表格 -->
+        <div class="bg-white rounded-xl shadow-soft p-6 mb-8">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">预约记录管理</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">姓名</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">手机号码</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">预约日期</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">预约时间</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
+                        </tr>
+                    </thead>
+                    <tbody id="appointments-table-body" class="bg-white divide-y divide-gray-200">
+                        <!-- 表格数据将通过JavaScript动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 已预约时段表格 -->
+        <div class="bg-white rounded-xl shadow-soft p-6 mb-8">
+            <h2 class="text-xl font-bold mb-4 text-gray-800">已预约时段数据</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead>
+                        <tr>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">已预约时段</th>
+                            <th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">时段数量</th>
+                        </tr>
+                    </thead>
+                    <tbody id="booked-slots-table-body" class="bg-white divide-y divide-gray-200">
+                        <!-- 表格数据将通过JavaScript动态生成 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-800 text-gray-300 py-6 mt-12">
+        <div class="container mx-auto px-4 text-center text-sm">
+            <p>© 2023 非公证继承预约系统 - 数据管理工具</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 从数据同步模块获取数据
+            const { CaseManager, AppointmentManager, DataStatistics, DATA_MODELS } = window.DataSync;
+            
+            // 订阅数据变化事件，实现实时更新
+            window.DataSync.subscribe(DATA_MODELS.CASE_DATABASE, refreshAllData);
+            window.DataSync.subscribe(DATA_MODELS.APPOINTMENTS, refreshAllData);
+
+            // 获取状态显示样式
+            function getStatusStyle(status) {
+                switch(status) {
+                    case 'approved':
+                        return { text: '已通过', class: 'bg-green-100 text-green-800 px-2 py-1 rounded text-xs' };
+                    case 'rejected':
+                        return { text: '已拒绝', class: 'bg-red-100 text-red-800 px-2 py-1 rounded text-xs' };
+                    case 'pending':
+                        return { text: '审核中', class: 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-xs' };
+                    case 'confirmed':
+                        return { text: '已确认', class: 'bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs' };
+                    case 'cancelled':
+                        return { text: '已取消', class: 'bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs' };
+                    default:
+                        return { text: '未知', class: 'bg-gray-100 text-gray-800 px-2 py-1 rounded text-xs' };
+                }
+            }
+
+            // 更新数据统计
+            function updateStatistics() {
+                document.getElementById('total-appointments').textContent = DataStatistics.getTotalAppointments();
+                document.getElementById('approved-count').textContent = DataStatistics.getApprovedCasesCount();
+                document.getElementById('pending-count').textContent = DataStatistics.getPendingCasesCount();
+            }
+
+            // 渲染案件审核状态表格
+            function renderCasesTable(filteredCases = null) {
+                const tableBody = document.getElementById('cases-table-body');
+                tableBody.innerHTML = '';
+                
+                // 确定要显示的案件数据
+                const casesToRender = filteredCases || CaseManager.getAllCases();
+                
+                casesToRender.forEach((item, index) => {
+                    // 使用唯一标识符（姓名+电话）来处理更新和删除操作
+                    const statusStyle = getStatusStyle(item.status);
+                    const row = document.createElement('tr');
+                    row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">${item.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${item.phone}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="${statusStyle.class}">${statusStyle.text}</span>
+                        </td>
+                        <td class="px-6 py-4">${item.reason || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div class="flex space-x-2">
+                                <select onchange="updateCaseStatus('${item.name}', '${item.phone}', this.value)" class="text-sm border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary">
+                                    <option value="approved" ${item.status === 'approved' ? 'selected' : ''}>已通过</option>
+                                    <option value="rejected" ${item.status === 'rejected' ? 'selected' : ''}>已拒绝</option>
+                                    <option value="pending" ${item.status === 'pending' ? 'selected' : ''}>审核中</option>
+                                </select>
+                                <button onclick="deleteCase('${item.name}', '${item.phone}')" class="text-danger hover:text-red-700">
+                                    <i class="fa fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            }
+            
+            // 搜索案件
+            function searchCases() {
+                const searchTerm = document.getElementById('case-search-input').value.trim().toLowerCase();
+                
+                if (searchTerm === '') {
+                    renderCasesTable();
+                    document.getElementById('case-reset-btn').classList.add('hidden');
+                    return;
+                }
+                
+                // 使用同步模块提供的搜索功能
+                const filteredCases = CaseManager.searchCases(searchTerm);
+                
+                renderCasesTable(filteredCases);
+                document.getElementById('case-reset-btn').classList.remove('hidden');
+            }
+            
+            // 重置搜索
+            function resetSearch() {
+                document.getElementById('case-search-input').value = '';
+                renderCasesTable();
+                document.getElementById('case-reset-btn').classList.add('hidden');
+            }
+
+            // 渲染预约记录表格
+            function renderAppointmentsTable() {
+                const tableBody = document.getElementById('appointments-table-body');
+                tableBody.innerHTML = '';
+                
+                const appointments = AppointmentManager.getAllAppointments();
+                appointments.forEach((item, index) => {
+                    const statusStyle = getStatusStyle(item.status);
+                    const row = document.createElement('tr');
+                    row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">${item.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${item.phone}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${item.date} (${item.displayDate})</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${item.time}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="${statusStyle.class}">${statusStyle.text}</span>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            }
+
+            // 渲染已预约时段表格
+            function renderBookedSlotsTable() {
+                const tableBody = document.getElementById('booked-slots-table-body');
+                tableBody.innerHTML = '';
+                
+                // 从同步模块获取已预约时段数据
+                const bookedSlots = AppointmentManager.getBookedSlots();
+                
+                // 将bookedSlots对象转换为数组以便排序
+                const slotsArray = Object.entries(bookedSlots).map(([date, slots]) => ({
+                    date: date,
+                    slots: slots,
+                    count: slots.length
+                }));
+                
+                // 按日期排序
+                slotsArray.sort((a, b) => new Date(a.date) - new Date(b.date));
+                
+                slotsArray.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    row.className = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+                    
+                    // 格式化日期显示
+                    const dateObj = new Date(item.date);
+                    const formattedDate = `${dateObj.getFullYear()}年${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
+                    
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">${formattedDate}</td>
+                        <td class="px-6 py-4">${item.slots.length > 0 ? item.slots.join(', ') : '无'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${item.count}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            }
+
+            // 导出Excel数据
+            function exportToExcel() {
+                // 创建工作簿
+                const wb = XLSX.utils.book_new();
+                
+                // 准备案件数据
+                const casesSheetData = CaseManager.getAllCases().map(item => ({
+                    '姓名': item.name,
+                    '手机号码': item.phone,
+                    '审核状态': getStatusStyle(item.status).text,
+                    '原因/备注': item.reason || ''
+                }));
+                
+                // 准备预约数据
+                const appointmentsSheetData = AppointmentManager.getAllAppointments().map(item => ({
+                    '姓名': item.name,
+                    '手机号码': item.phone,
+                    '预约日期': item.date,
+                    '显示日期': item.displayDate,
+                    '预约时间': item.time,
+                    '状态': getStatusStyle(item.status).text
+                }));
+                
+                // 准备已预约时段数据
+                const slotsSheetData = [];
+                const bookedSlots = AppointmentManager.getBookedSlots();
+                Object.entries(bookedSlots).forEach(([date, slots]) => {
+                    if (slots.length > 0) {
+                        slots.forEach(slot => {
+                            slotsSheetData.push({
+                                '日期': date,
+                                '时段': slot
+                            });
+                        });
+                    } else {
+                        slotsSheetData.push({
+                            '日期': date,
+                            '时段': '无'
+                        });
+                    }
+                });
+                
+                // 创建工作表
+                const casesWs = XLSX.utils.json_to_sheet(casesSheetData);
+                const appointmentsWs = XLSX.utils.json_to_sheet(appointmentsSheetData);
+                const slotsWs = XLSX.utils.json_to_sheet(slotsSheetData);
+                
+                // 添加工作表到工作簿
+                XLSX.utils.book_append_sheet(wb, casesWs, "案件审核状态");
+                XLSX.utils.book_append_sheet(wb, appointmentsWs, "预约记录");
+                XLSX.utils.book_append_sheet(wb, slotsWs, "已预约时段");
+                
+                // 生成Excel文件并下载
+                const fileName = `预约数据_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.xlsx`;
+                XLSX.writeFile(wb, fileName);
+                
+                // 显示成功提示
+                alert(`Excel数据导出成功！文件名：${fileName}`);
+            }
+
+            // 显示添加案件表单
+            function showAddCaseForm() {
+                document.getElementById('case-form-container').classList.remove('hidden');
+                document.getElementById('case-name').focus();
+            }
+            
+            // 隐藏添加案件表单
+            function hideAddCaseForm() {
+                document.getElementById('case-form-container').classList.add('hidden');
+                document.getElementById('add-case-form').reset();
+            }
+            
+            // 添加新案件
+            function addNewCase(name, phone, status, reason) {
+                const newCase = {
+                    name: name,
+                    phone: phone,
+                    status: status,
+                    reason: reason
+                };
+                
+                // 使用同步模块添加案件
+                CaseManager.addCase(newCase);
+                
+                // 案件添加后，用户可在预约系统中自行预约
+                // 移除自动创建预约的逻辑，确保预约流程符合要求：
+                // 1. 在Excel添加案件
+                // 2. 在预约系统查询
+                // 3. 用户在预约系统进行预约
+                // 4. 预约成功后反馈回Excel表
+                if (status === 'approved') {
+                    // 仅提示用户可在预约系统中进行预约
+                    alert(`用户 ${name} 的案件已通过审核，请通知用户前往预约系统进行预约操作。`);
+                }
+                
+                // 数据同步模块会自动触发数据更新事件，无需手动刷新
+                alert('案件添加成功！');
+            }
+
+            // 刷新所有数据显示
+            function refreshAllData() {
+                // 重置搜索状态
+                resetSearch();
+                // 更新统计信息和表格
+                updateStatistics();
+                renderCasesTable();
+                renderAppointmentsTable();
+                renderBookedSlotsTable();
+            }
+
+            // 更新案件状态
+            window.updateCaseStatus = function(name, phone, newStatus) {
+                const cases = CaseManager.getAllCases();
+                const caseIndex = cases.findIndex(c => c.name === name && c.phone === phone);
+                
+                if (caseIndex !== -1) {
+                    // 使用同步模块更新案件状态
+                    CaseManager.updateCaseStatus(caseIndex, newStatus);
+                    
+                    // 如果状态变为已通过，提示用户可在预约系统中自行预约
+                    if (newStatus === 'approved') {
+                        // 仅提示用户可在预约系统中进行预约
+                        alert(`用户 ${name} 的案件已通过审核，请通知用户前往预约系统进行预约操作。`);
+                    }
+                }
+            };
+
+            // 删除案件
+            window.deleteCase = function(name, phone) {
+                const cases = CaseManager.getAllCases();
+                const caseIndex = cases.findIndex(c => c.name === name && c.phone === phone);
+                
+                if (caseIndex !== -1) {
+                    if (confirm(`确定要删除 ${name} 的案件信息吗？`)) {
+                        // 使用同步模块删除案件
+                        CaseManager.deleteCase(caseIndex);
+                    }
+                }
+            };
+
+            // 绑定按钮事件
+            document.getElementById('export-excel-btn').addEventListener('click', exportToExcel);
+            document.getElementById('refresh-data-btn').addEventListener('click', function() {
+                resetSearch();
+                refreshAllData();
+            });
+            document.getElementById('add-case-btn').addEventListener('click', showAddCaseForm);
+            document.getElementById('cancel-add-case').addEventListener('click', hideAddCaseForm);
+            document.getElementById('case-search-btn').addEventListener('click', searchCases);
+            document.getElementById('case-reset-btn').addEventListener('click', resetSearch);
+            
+            // 搜索框回车事件
+            document.getElementById('case-search-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchCases();
+                }
+            });
+            
+            // 处理表单提交
+            document.getElementById('add-case-form').addEventListener('submit', function(event) {
+                event.preventDefault();
+                
+                const name = document.getElementById('case-name').value.trim();
+                const phone = document.getElementById('case-phone').value.trim();
+                const reason = document.getElementById('case-reason').value.trim();
+                const status = document.querySelector('input[name="case-status"]:checked').value;
+                
+                // 验证必填字段
+                if (!name || !phone) {
+                    alert('请填写所有必填字段（姓名、手机号码）');
+                    return;
+                }
+                
+                // 验证手机号码格式
+                const phoneRegex = /^1[3-9]\d{9}$/;
+                if (!phoneRegex.test(phone)) {
+                    alert('请输入有效的手机号码');
+                    document.getElementById('case-phone').focus();
+                    return;
+                }
+                
+                // 添加新案件
+                addNewCase(name, phone, status, reason);
+                
+                // 隐藏表单
+                hideAddCaseForm();
+            });
+
+            // 初始渲染
+            refreshAllData();
+        });
+    </script>
+</body>
+</html>

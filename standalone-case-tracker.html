@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>案件管理系统 - 独立版</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background-color: #1a73e8;
+            color: white;
+            padding: 15px 0;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 500;
+        }
+        
+        .header .date {
+            font-size: 14px;
+            margin-top: 5px;
+            opacity: 0.9;
+        }
+        
+        .steps {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        
+        .steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 15%;
+            right: 15%;
+            height: 2px;
+            background-color: #e0e0e0;
+            z-index: 1;
+        }
+        
+        .step {
+            text-align: center;
+            position: relative;
+            z-index: 2;
+            flex: 1;
+        }
+        
+        .step-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #e0e0e0;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        .step.active .step-icon {
+            background-color: #1a73e8;
+            color: white;
+        }
+        
+        .step-label {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .step.active .step-label {
+            color: #1a73e8;
+            font-weight: 500;
+        }
+        
+        .form-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        input[type="text"], input[type="tel"], select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        input[type="text"]:focus, input[type="tel"]:focus, select:focus {
+            outline: none;
+            border-color: #1a73e8;
+        }
+        
+        .btn {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            width: 100%;
+        }
+        
+        .btn:hover {
+            background-color: #1557b0;
+        }
+        
+        .result-message {
+            text-align: center;
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .result-success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #c8e6c9;
+        }
+        
+        .result-rejected {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+        }
+        
+        .result-pending {
+            background-color: #fff8e1;
+            color: #f57c00;
+            border: 1px solid #ffe0b2;
+        }
+        
+        .time-slots {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .time-slot {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .time-slot:hover {
+            border-color: #1a73e8;
+            background-color: #f5f7fa;
+        }
+        
+        .time-slot.selected {
+            background-color: #1a73e8;
+            color: white;
+            border-color: #1a73e8;
+        }
+        
+        .time-slot.booked {
+            background-color: #f5f5f5;
+            color: #999;
+            cursor: not-allowed;
+            border-color: #ddd;
+        }
+        
+        .help-tips {
+            background-color: #f8f9fa;
+            border-left: 4px solid #1a73e8;
+            padding: 15px;
+            margin-top: 30px;
+            border-radius: 0 4px 4px 0;
+        }
+        
+        .help-tips h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #1a73e8;
+        }
+        
+        .help-tips ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        
+        .help-tips li {
+            font-size: 14px;
+            margin-bottom: 8px;
+            padding-left: 15px;
+            position: relative;
+        }
+        
+        .help-tips li::before {
+            content: '•';
+            color: #1a73e8;
+            position: absolute;
+            left: 0;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px 0;
+            color: #666;
+            font-size: 14px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .success-icon {
+            font-size: 48px;
+            color: #4caf50;
+            margin-bottom: 20px;
+        }
+        
+        .booking-details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        
+        .booking-details p {
+            margin: 8px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .steps {
+                flex-wrap: wrap;
+            }
+            
+            .steps::before {
+                display: none;
+            }
+            
+            .form-container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+            <div class="container">
+                <h1>非公证继承预约系统</h1>
+                <div class="date" id="current-date"></div>
+            </div>
+        </div>
+    
+    <div class="container">
+        <div class="steps">
+            <div class="step active" id="step-1">
+                <div class="step-icon">🔍</div>
+                <div class="step-label">查询进度</div>
+            </div>
+            <div class="step" id="step-2">
+                <div class="step-icon">📋</div>
+                <div class="step-label">审核结果</div>
+            </div>
+            <div class="step" id="step-3">
+                <div class="step-icon">📅</div>
+                <div class="step-label">选择时间</div>
+            </div>
+            <div class="step" id="step-4">
+                <div class="step-icon">✅</div>
+                <div class="step-label">完成预约</div>
+            </div>
+        </div>
+        
+        <div class="form-container">
+            <!-- 步骤1: 查询表单 -->
+            <div id="form-step-1">
+                <h2>查询案件进度</h2>
+                <div class="form-group">
+                    <label for="name">请输入产权人的姓名</label>
+                    <input type="text" id="name" placeholder="请输入产权人的姓名">
+                </div>
+                <div class="form-group">
+                    <label for="phone">请输入手机号码</label>
+                    <input type="tel" id="phone" placeholder="请输入您的手机号码">
+                </div>
+                <button class="btn" id="query-btn">查询</button>
+            </div>
+            
+            <!-- 步骤2: 审核结果 -->
+            <div id="form-step-2" class="hidden">
+                <h2>审核结果</h2>
+                <div id="result-message" class="result-message"></div>
+                <div id="result-actions" class="hidden">
+                    <button class="btn" id="book-btn">预约现场办理</button>
+                </div>
+                <button class="btn hidden" id="view-appointment-btn" style="margin-top: 10px;">查看已预约信息</button>
+                <button class="btn" id="back-to-query" style="margin-top: 10px;">返回查询</button>
+            </div>
+            
+            <!-- 步骤3: 选择时间 -->
+            <div id="form-step-3" class="hidden">
+                <h2>选择预约时间</h2>
+                <div class="form-group">
+                    <label for="booking-year">选择年份</label>
+                    <select id="booking-year">
+                        <option value="2025">2025年</option>
+                        <option value="2026">2026年</option>
+                        <option value="2027">2027年</option>
+                        <option value="2028">2028年</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="booking-month">选择月份</label>
+                    <select id="booking-month">
+                        <option value="1">1月</option>
+                        <option value="2">2月</option>
+                        <option value="3">3月</option>
+                        <option value="4">4月</option>
+                        <option value="5">5月</option>
+                        <option value="6">6月</option>
+                        <option value="7">7月</option>
+                        <option value="8">8月</option>
+                        <option value="9">9月</option>
+                        <option value="10">10月</option>
+                        <option value="11">11月</option>
+                        <option value="12">12月</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="booking-date">选择日期</label>
+                    <select id="booking-date"></select>
+                </div>
+                <div class="form-group">
+                    <label>选择时间段</label>
+                    <div class="time-slots" id="time-slots"></div>
+                </div>
+                <button class="btn" id="confirm-time-btn">确认预约</button>
+                <button class="btn" id="back-to-result" style="margin-top: 10px; background-color: #666;">返回结果</button>
+            </div>
+            
+            <!-- 步骤4: 完成预约 -->
+            <div id="form-step-4" class="hidden">
+                <h2 style="text-align: center;">预约成功！</h2>
+                <div class="success-icon" style="text-align: center;">✓</div>
+                <div class="booking-details">
+                    <p><strong>姓名：</strong><span id="booking-name"></span></p>
+                    <p><strong>手机号码：</strong><span id="booking-phone"></span></p>
+                    <p><strong>预约日期：</strong><span id="booking-date-display"></span></p>
+                    <p><strong>预约时间：</strong><span id="booking-time-display"></span></p>
+                </div>
+                <p style="text-align: center; color: #666;">我们已向您的手机发送了预约成功短信，请准时前往办理。</p>
+                <button class="btn hidden" id="cancel-appointment-btn" style="margin-bottom: 10px;">取消预约</button>
+                <button class="btn hidden" id="change-appointment-btn" style="margin-bottom: 10px;">更改预约时间</button>
+                <button class="btn hidden" id="new-appointment-btn" style="margin-bottom: 10px;">重新预约</button>
+                <button class="btn" id="new-query-btn">新的查询</button>
+            </div>
+        </div>
+        
+        <div class="help-tips">
+            <h3>温馨提示</h3>
+            <ul>
+                <li>审核通过后，可以随时进行预约操作</li>
+                <li>办理录音录像的时间暂时仅为每周的星期四、星期五</li>
+                <li>预约成功后，系统将发送短信提醒至您预留的联系电话</li>
+                <li>如有疑问，请在周一至周五的上班时间联系工作人员：0668-2798581（上午8:30-12:00，下午14:30-17:30）</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="footer">
+            <div class="container">
+                © 2023 非公证继承预约系统 - 保留所有权利
+            </div>
+        </div>
+    
+    <script src="data-sync.js"></script>
+    <script>
+        // 当前日期显示
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置当前日期
+            const now = new Date();
+            const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+            document.getElementById('current-date').textContent = now.toLocaleDateString('zh-CN', options);
+            
+            // 使用DataSync模块
+            // 当前用户信息
+            let currentUser = null;
+            let selectedSlot = null;
+            
+            // 初始化DataSync模块
+            if (typeof DataSync !== 'undefined') {
+                DataSync.init();
+            } else {
+                console.error('DataSync模块未加载成功');
+            }
+            
+            // 步骤导航
+            function goToStep(stepNumber) {
+                // 隐藏所有步骤
+                for (let i = 1; i <= 4; i++) {
+                    document.getElementById(`form-step-${i}`).classList.add('hidden');
+                    document.getElementById(`step-${i}`).classList.remove('active');
+                }
+                
+                // 显示当前步骤
+                document.getElementById(`form-step-${stepNumber}`).classList.remove('hidden');
+                document.getElementById(`step-${stepNumber}`).classList.add('active');
+                
+                // 更新进度条
+                for (let i = 1; i <= stepNumber; i++) {
+                    document.getElementById(`step-${i}`).classList.add('active');
+                }
+            }
+            
+            // 生成可用时段
+            function generateTimeSlots(date) {
+                const slotsContainer = document.getElementById('time-slots');
+                slotsContainer.innerHTML = '';
+                
+                const slots = ['09:00-10:00', '10:00-11:00', '15:00-16:00', '16:00-17:00'];
+                // 获取已预约时段 - 使用AppointmentManager
+                const booked = DataSync.AppointmentManager.getBookedSlotsByDate(date);
+                
+                slots.forEach(slot => {
+                    const slotElement = document.createElement('div');
+                    slotElement.className = 'time-slot';
+                    slotElement.textContent = slot;
+                    
+                    if (booked.includes(slot)) {
+                        slotElement.classList.add('booked');
+                    } else {
+                        slotElement.addEventListener('click', function() {
+                            // 移除其他选中状态
+                            document.querySelectorAll('.time-slot.selected').forEach(el => {
+                                el.classList.remove('selected');
+                            });
+                            // 添加当前选中状态
+                            slotElement.classList.add('selected');
+                            selectedSlot = slot;
+                        });
+                    }
+                    
+                    slotsContainer.appendChild(slotElement);
+                });
+            }
+            
+            // 查询按钮事件
+            document.getElementById('query-btn').addEventListener('click', function() {
+                const name = document.getElementById('name').value.trim();
+                const phone = document.getElementById('phone').value.trim();
+                
+                if (!name || !phone) {
+                    alert('请输入姓名和手机号码');
+                    return;
+                }
+                
+                // 查询数据库 - 使用CaseManager
+                const user = DataSync.CaseManager.getCaseByNameAndPhone(name, phone);
+                
+                if (user) {
+                    currentUser = user;
+                    // 设置结果数据
+                    const resultMessage = document.getElementById('result-message');
+                    const resultActions = document.getElementById('result-actions');
+                    
+                    // 清空之前的状态
+                    resultMessage.className = 'result-message';
+                    resultActions.classList.add('hidden');
+                    
+                    // 查找用户的预约记录 - 使用AppointmentManager
+                    const userAppointment = DataSync.AppointmentManager.getAppointmentByUser(name, phone);
+                    
+                    // 设置结果消息和样式
+                    if (user.status === 'approved') {
+                        if (userAppointment) {
+                            resultMessage.innerHTML = `<strong>恭喜，您的申请已审核通过！</strong><br/>您已预约${userAppointment.displayDate} ${userAppointment.time}的办理时段`;
+                            resultMessage.classList.add('result-success');
+                            // 隐藏预约按钮，显示查看预约按钮
+                            document.getElementById('book-btn').classList.add('hidden');
+                            document.getElementById('view-appointment-btn').classList.remove('hidden');
+                        } else {
+                            resultMessage.innerHTML = '<strong>恭喜，您的申请已审核通过！</strong><br/>您可以立即进行现场办理预约';
+                            resultMessage.classList.add('result-success');
+                            resultActions.classList.remove('hidden');
+                        }
+                    } else if (user.status === 'rejected') {
+                        resultMessage.innerHTML = `<strong>很抱歉，您的申请未通过审核</strong><br/>${user.reason}`;
+                        resultMessage.classList.add('result-rejected');
+                    } else if (user.status === 'pending') {
+                        resultMessage.innerHTML = `<strong>您的申请正在处理中</strong><br/>${user.reason || '请耐心等待审核结果'}`;
+                        resultMessage.classList.add('result-pending');
+                    }
+                    
+                    // 确保结果区域有足够的高度显示完整内容
+                    resultMessage.style.minHeight = '80px';
+                    resultMessage.style.display = 'flex';
+                    resultMessage.style.flexDirection = 'column';
+                    resultMessage.style.justifyContent = 'center';
+                    
+                    // 导航到步骤2
+                    goToStep(2);
+                } else {
+                    alert('未找到相关记录，请检查姓名和手机号码是否正确');
+                }
+            });
+            
+            // 根据年月获取所有周四和周五的日期
+            function getWeekdaysInMonth(year, month) {
+                const weekdays = [];
+                const daysInMonth = new Date(year, month, 0).getDate();
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = new Date(year, month - 1, day);
+                    const dayOfWeek = date.getDay();
+                    
+                    // 周四(4)或周五(5)
+                    if (dayOfWeek === 4 || dayOfWeek === 5) {
+                        const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        const dayName = ['日', '一', '二', '三', '四', '五', '六'][dayOfWeek];
+                        weekdays.push({
+                            date: formattedDate,
+                            display: `${month}月${day}日 (周${dayName})`
+                        });
+                    }
+                }
+                
+                return weekdays;
+            }
+            
+            // 填充日期下拉框
+            function populateDateDropdown(year, month) {
+                const dateSelect = document.getElementById('booking-date');
+                dateSelect.innerHTML = '';
+                
+                const weekdays = getWeekdaysInMonth(year, month);
+                
+                if (weekdays.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = '该月份没有可用的周四或周五';
+                    option.disabled = true;
+                    dateSelect.appendChild(option);
+                } else {
+                    weekdays.forEach(day => {
+                        const option = document.createElement('option');
+                        option.value = day.date;
+                        option.textContent = day.display;
+                        dateSelect.appendChild(option);
+                    });
+                    
+                    // 默认选择第一个日期
+                    if (dateSelect.options.length > 0) {
+                        dateSelect.selectedIndex = 0;
+                        generateTimeSlots(dateSelect.value);
+                    }
+                }
+            }
+            
+            // 预约按钮事件
+            document.getElementById('book-btn').addEventListener('click', function() {
+                // 重置按钮状态
+                document.getElementById('book-btn').classList.remove('hidden');
+                document.getElementById('view-appointment-btn').classList.add('hidden');
+                // 初始化日期选择器
+                const year = parseInt(document.getElementById('booking-year').value);
+                const month = parseInt(document.getElementById('booking-month').value);
+                populateDateDropdown(year, month);
+                goToStep(3);
+            });
+            
+            // 年份选择变更事件
+            document.getElementById('booking-year').addEventListener('change', function() {
+                const year = parseInt(this.value);
+                const month = parseInt(document.getElementById('booking-month').value);
+                populateDateDropdown(year, month);
+                selectedSlot = null;
+            });
+            
+            // 月份选择变更事件
+            document.getElementById('booking-month').addEventListener('change', function() {
+                const year = parseInt(document.getElementById('booking-year').value);
+                const month = parseInt(this.value);
+                populateDateDropdown(year, month);
+                selectedSlot = null;
+            });
+            
+            // 日期选择变更事件
+            document.getElementById('booking-date').addEventListener('change', function() {
+                if (this.value) {
+                    generateTimeSlots(this.value);
+                }
+                selectedSlot = null;
+            });
+            
+            // 查看预约按钮事件
+            document.getElementById('view-appointment-btn').addEventListener('click', function() {
+                const userAppointment = DataSync.AppointmentManager.getAppointmentByUser(currentUser.name, currentUser.phone);
+                if (userAppointment) {
+                    // 填充预约信息
+                    document.getElementById('booking-name').textContent = userAppointment.name;
+                    document.getElementById('booking-phone').textContent = userAppointment.phone;
+                    document.getElementById('booking-date-display').textContent = userAppointment.displayDate;
+                    document.getElementById('booking-time-display').textContent = userAppointment.time;
+                    
+                    // 显示取消和更改按钮
+                    document.getElementById('cancel-appointment-btn').classList.remove('hidden');
+                    document.getElementById('change-appointment-btn').classList.remove('hidden');
+                    document.getElementById('new-appointment-btn').classList.add('hidden');
+                    
+                    goToStep(4);
+                }
+            });
+            
+            // 取消预约按钮事件
+            document.getElementById('cancel-appointment-btn').addEventListener('click', function() {
+                if (confirm('确定要取消预约吗？')) {
+                    // 使用AppointmentManager取消预约
+                    DataSync.AppointmentManager.cancelAppointment(currentUser.name, currentUser.phone);
+                    
+                    alert('预约已取消');
+                    // 返回查询结果页面
+                    goToStep(2);
+                }
+            });
+            
+            // 更改预约按钮事件
+            document.getElementById('change-appointment-btn').addEventListener('click', function() {
+                // 先取消当前预约 - 使用AppointmentManager
+                DataSync.AppointmentManager.cancelAppointment(currentUser.name, currentUser.phone);
+                
+                // 前往选择时间页面
+                document.getElementById('book-btn').click();
+            });
+            
+            // 确认预约按钮事件
+            document.getElementById('confirm-time-btn').addEventListener('click', function() {
+                if (!selectedSlot) {
+                    alert('请选择一个预约时段');
+                    return;
+                }
+                
+                const selectedDate = document.getElementById('booking-date').value;
+                const dateText = document.getElementById('booking-date').options[document.getElementById('booking-date').selectedIndex].text;
+                
+                // 创建预约对象
+                const newAppointment = {
+                    name: currentUser.name,
+                    phone: currentUser.phone,
+                    date: selectedDate,
+                    time: selectedSlot,
+                    displayDate: dateText
+                };
+                
+                // 使用AppointmentManager添加预约
+                DataSync.AppointmentManager.addAppointment(newAppointment);
+                
+                // 填充预约信息
+                document.getElementById('booking-name').textContent = currentUser.name;
+                document.getElementById('booking-phone').textContent = currentUser.phone;
+                document.getElementById('booking-date-display').textContent = dateText;
+                document.getElementById('booking-time-display').textContent = selectedSlot;
+                
+                // 隐藏取消和更改按钮，显示新预约按钮
+                document.getElementById('cancel-appointment-btn').classList.add('hidden');
+                document.getElementById('change-appointment-btn').classList.add('hidden');
+                document.getElementById('new-appointment-btn').classList.remove('hidden');
+                
+                goToStep(4);
+            });
+            
+            // 返回查询按钮事件
+            document.getElementById('back-to-query').addEventListener('click', function() {
+                goToStep(1);
+            });
+            
+            // 返回结果按钮事件
+            document.getElementById('back-to-result').addEventListener('click', function() {
+                goToStep(2);
+            });
+            
+            // 新的查询按钮事件
+            document.getElementById('new-query-btn').addEventListener('click', function() {
+                // 重置表单
+                document.getElementById('name').value = '';
+                document.getElementById('phone').value = '';
+                currentUser = null;
+                selectedSlot = null;
+                // 重置按钮状态
+                document.getElementById('book-btn').classList.remove('hidden');
+                document.getElementById('view-appointment-btn').classList.add('hidden');
+                goToStep(1);
+            });
+            
+            // 重新预约按钮事件
+            document.getElementById('new-appointment-btn').addEventListener('click', function() {
+                // 先取消当前预约 - 使用AppointmentManager
+                DataSync.AppointmentManager.cancelAppointment(currentUser.name, currentUser.phone);
+                
+                // 前往选择时间页面
+                document.getElementById('book-btn').click();
+            });
+            // 添加数据变更事件监听，实现实时更新
+            if (typeof DataSync !== 'undefined') {
+                // 监听案件数据变更
+                DataSync.on('casesUpdated', function() {
+                    // 如果当前在步骤2（审核结果页面），刷新数据
+                    if (!document.getElementById('form-step-2').classList.contains('hidden') && currentUser) {
+                        const updatedUser = DataSync.CaseManager.getCaseByNameAndPhone(currentUser.name, currentUser.phone);
+                        if (updatedUser) {
+                            currentUser = updatedUser;
+                            
+                            const resultMessage = document.getElementById('result-message');
+                            const resultActions = document.getElementById('result-actions');
+                            
+                            // 清空之前的状态
+                            resultMessage.className = 'result-message';
+                            resultActions.classList.add('hidden');
+                            
+                            // 查找用户的预约记录
+                            const userAppointment = DataSync.AppointmentManager.getAppointmentByUser(currentUser.name, currentUser.phone);
+                            
+                            // 设置结果消息和样式
+                            if (currentUser.status === 'approved') {
+                                if (userAppointment) {
+                                    resultMessage.textContent = `恭喜，您的申请已审核通过！您已预约${userAppointment.displayDate} ${userAppointment.time}的办理时段`;
+                                    resultMessage.classList.add('result-success');
+                                    // 隐藏预约按钮，显示查看预约按钮
+                                    document.getElementById('book-btn').classList.add('hidden');
+                                    document.getElementById('view-appointment-btn').classList.remove('hidden');
+                                } else {
+                                    resultMessage.textContent = '恭喜，您的申请已审核通过！';
+                                    resultMessage.classList.add('result-success');
+                                    resultActions.classList.remove('hidden');
+                                }
+                            } else if (currentUser.status === 'rejected') {
+                                resultMessage.textContent = currentUser.reason;
+                                resultMessage.classList.add('result-rejected');
+                            } else if (currentUser.status === 'pending') {
+                                resultMessage.textContent = currentUser.reason;
+                                resultMessage.classList.add('result-pending');
+                            }
+                        }
+                    }
+                });
+                
+                // 监听预约数据变更
+                DataSync.on('appointmentsUpdated', function() {
+                    // 如果当前在步骤2（审核结果页面），刷新预约状态
+                    if (!document.getElementById('form-step-2').classList.contains('hidden') && currentUser) {
+                        const userAppointment = DataSync.AppointmentManager.getAppointmentByUser(currentUser.name, currentUser.phone);
+                        const resultMessage = document.getElementById('result-message');
+                        
+                        if (currentUser.status === 'approved') {
+                            if (userAppointment) {
+                                resultMessage.textContent = `恭喜，您的申请已审核通过！您已预约${userAppointment.displayDate} ${userAppointment.time}的办理时段`;
+                                // 隐藏预约按钮，显示查看预约按钮
+                                document.getElementById('book-btn').classList.add('hidden');
+                                document.getElementById('view-appointment-btn').classList.remove('hidden');
+                            } else {
+                                resultMessage.textContent = '恭喜，您的申请已审核通过！';
+                                document.getElementById('book-btn').classList.remove('hidden');
+                                document.getElementById('view-appointment-btn').classList.add('hidden');
+                            }
+                        }
+                    }
+                    
+                    // 如果当前在步骤3（选择时间页面），刷新可用时段
+                    if (!document.getElementById('form-step-3').classList.contains('hidden')) {
+                        const selectedDate = document.getElementById('booking-date').value;
+                        if (selectedDate) {
+                            generateTimeSlots(selectedDate);
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
